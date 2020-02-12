@@ -2,8 +2,8 @@ import numpy as np
 import os
 import torch
 
-import lfi.simulators as simulators
-import lfi.utils as utils
+import sbi.simulators as simulators
+import pyknos.utils as utils
 
 from copy import deepcopy
 from pyro.infer.mcmc import HMC, NUTS
@@ -15,7 +15,7 @@ from torch.utils.data.sampler import SubsetRandomSampler
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
-from lfi.mcmc import Slice, SliceSampler
+from sbi.mcmc import Slice, SliceSampler
 
 if torch.cuda.is_available():
     device = torch.device("cuda")
