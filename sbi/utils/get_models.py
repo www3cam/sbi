@@ -35,6 +35,25 @@ def get_neural_posterior(model, parameter_dim, observation_dim, simulator):
             custom_initialization=True,
         )
 
+    if model == "mdn-1":
+        hidden_features = 50
+        neural_posterior = MultivariateGaussianMDN(
+            features=parameter_dim,
+            context_features=observation_dim,
+            hidden_features=hidden_features,
+            hidden_net=nn.Sequential(
+                nn.Linear(observation_dim, hidden_features),
+                nn.ReLU(),
+                nn.Dropout(p=0.0),
+                nn.Linear(hidden_features, hidden_features),
+                nn.ReLU(),
+                nn.Linear(hidden_features, hidden_features),
+                nn.ReLU(),
+            ),
+            num_components=1,
+            custom_initialization=True,
+        )
+        
     elif model == "made":
         num_mixture_components = 5
         transform = normalizing_transform
