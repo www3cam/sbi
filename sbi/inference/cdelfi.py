@@ -164,18 +164,14 @@ class CDELFI:
             else:
                 proposal = self._model_bank[-2].get_mixture_components(self._true_observation)
                 correction_factors = {
-                   'mp' : proposal[1].squeeze(),
-                   'Pp' : proposal[2].squeeze()                   
+                   'mp' : proposal[1].squeeze().clone().detach(),
+                   'Pp' : proposal[2].squeeze().clone().detach()                   
                 }
                 if isinstance(self._prior, distributions.MultivariateNormal):                    
                     correction_factors['m0'] = prior.loc 
-                elif isinstance(self._prior, distributions.Uniform):                     
-                    correction_factors['m0'] = (self._prior.high-self._prior.low)/2.
-                else: 
-                    raise NotImplemented()
-                if isinstance(self._prior, distributions.MultivariateNormal):                    
                     correction_factors['P0'] = prior.precision_matrix
                 elif isinstance(self._prior, distributions.Uniform):                     
+                    correction_factors['m0'] = (self._prior.high-self._prior.low)/2.
                     correction_factors['P0'] = 0. * torch.eye(self._prior.low.shape[0])
                 else: 
                     raise NotImplemented()
