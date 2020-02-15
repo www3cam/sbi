@@ -168,8 +168,8 @@ class CDELFI:
                    'Pp' : proposal[2].squeeze().clone().detach()                   
                 }
                 if isinstance(self._prior, distributions.MultivariateNormal):                    
-                    correction_factors['m0'] = prior.loc 
-                    correction_factors['P0'] = prior.precision_matrix
+                    correction_factors['m0'] = self._prior.loc
+                    correction_factors['P0'] = self._prior.precision_matrix
                 elif isinstance(self._prior, distributions.Uniform):                     
                     correction_factors['m0'] = (self._prior.high-self._prior.low)/2.
                     correction_factors['P0'] = 0. * torch.eye(self._prior.low.shape[0])
@@ -180,7 +180,7 @@ class CDELFI:
                     simulator=self._simulator,
                     parameter_sample_fn=lambda num_samples: self.sample_posterior(
                         num_samples,
-                        correction_factors=correction_factors,
+                        correction_factors=correction_factors
                     ),
                     num_samples=num_simulations_per_round,
                 )
@@ -232,7 +232,7 @@ class CDELFI:
         )
 
         # Always sample in eval mode.
-        self._neural_posterior.eval()
+        #self._neural_posterior.eval()
 
         # Rejection sampling is potentially needed for the posterior.
         # This is because the prior may not have support everywhere.
@@ -241,10 +241,12 @@ class CDELFI:
         samples = []
         num_remaining_samples = num_samples
         total_num_accepted, self._total_num_generated_examples = 0, 0
+        sample_net = deepcopy(self._neural_posterior)
+        sample_net.eval()
         while num_remaining_samples > 0:
 
             # Generate samples from posterior.
-            candidate_samples = self._neural_posterior.sample(
+            candidate_samples = sample_net.sample(
                 max(10000, num_samples), context=true_observation.reshape(1, -1),
                 correction_factors=correction_factors,
             ).squeeze(0)
@@ -267,7 +269,7 @@ class CDELFI:
             self._total_num_generated_examples += candidate_samples.shape[0]
 
         # Back to training mode.
-        self._neural_posterior.train()
+        #self._neural_posterior.train()
 
         # Aggregate collected samples.
         samples = torch.cat(samples)
@@ -602,6 +604,60 @@ def test_():
     figure.savefig(os.path.join(utils.get_output_root(), "corner-posterior-cdelfi.pdf"))
 
 
+def posthoc_correction(logits, means, precisions, m0, P0, mp, Pp):
+    """
+    Corrects an MoG posterior estimate for Gaussian prior and Gaussian proposal.
+
+    Implemented based on
+    'Fast ε-free inference of simulation models with bayesian conditional density estimation'
+    Papamakarios et al.
+    ICML 2019
+    http://papers.nips.cc/paper/6084-fast-free-inference-of-simulation-models-with-bayesian-conditional-density-estimation 
+
+    :param logits: torch.tensor [n_comps]
+        (un-normalized) log-probabilities for compoments of Gaussian MDN.
+    :param means: torch.tensor [1, n_comps, output_dim]
+        Means for compoments of Gaussian MDN.
+    :param precisions: torch.tensor [1, n_comps, output_dim, output_dim]
+        Precision matrices for components of Gaussian MDN.
+    :param m0: torch.tensor [output_dim]
+        Mean of Gaussian prior.
+    :param P0: torch.tensor [output_dim, output_dim]
+        Precision matrices of Gaussian prior.
+    :param mp: torch.tensor [output_dim]
+        Mean of Gaussian proposal.
+    :param Pp: torch.tensor [output_dim, output_dim]
+        Precision matrices of Gaussian proposal.
+
+    :return: tuple of torch.Tensor
+        Corrected logits, means and precisions (dimensions as :params).
+    """    
+    assert means.shape[0] == 1 # no pytorch support for matrix-matrix multiplication of 4D tensors
+    means, precisions = means[0,:,:], precisions[0,:,:,:]
+    logits = logits.squeeze() if np.prod(logits.shape) > 1 else logits
+    n_comps, output_dim = means.shape
+
+    precisions_ = precisions + Pp - P0
+
+    Pms = torch.bmm(precisions, means[:,:,None])
+    mPms = torch.bmm(Pms.transpose(1,2), means[:,:,None]).squeeze()
+    Pm0, Pmp = torch.mv(P0, m0), torch.mv(Pp, mp)
+    means_ = torch.bmm(torch.inverse(precisions_), Pms + (Pmp - Pm0)[None,:,None])[:,:,0]
+
+    Pms_ = torch.bmm(precisions_, means_[:,:,None])
+    mPms_ = torch.bmm(Pms_.transpose(1,2), means_[:,:,None]).squeeze()
+
+    c = -torch.logdet(precisions)+torch.logdet(precisions_)
+    c += mPms - mPms_
+    c += torch.logdet(P0) - torch.logdet(Pp)
+    c += torch.dot(Pmp, mp) - torch.dot(Pm0, m0)
+
+    logits_ = logits - c.squeeze()/2.
+
+    outs = (logits_, means_[None,:,:], precisions_[None,:,:,:])
+    #for out in outs:
+    #    out.detach()
+    return outs    
 
 def main():
     test_()
