@@ -156,10 +156,16 @@ class SnpeBase(NeuralInference, ABC):
 
             # Run simulations for the round.
             theta, x, prior_mask = self._run_simulations(round_, num_sims)
+            # XXX: Bypassing binary calibration kernel here. We need this to get rid of
+            # NaN simulations. We could do that using calibration kernels, but then we
+            # hack here can be added to sre and snl easily.
+
+            # Get indices with finite data to remove NaN simulations.
+            x_not_nan = torch.unique(torch.where(torch.isfinite(x))[0])
             # XXX Rename bank -> rounds/roundwise.
-            self._theta_bank.append(theta)
-            self._x_bank.append(x)
-            self._prior_masks.append(prior_mask)
+            self._theta_bank.append(theta[x_not_nan])
+            self._x_bank.append(x[x_not_nan])
+            self._prior_masks.append(prior_mask[x_not_nan])
 
             # Fit posterior using newly aggregated data set.
             self._train(
@@ -274,9 +280,11 @@ class SnpeBase(NeuralInference, ABC):
         # XXX Mouthful, rename self.posterior.nn
         embed_nn = self._neural_posterior.neural_net._embedding_net
 
-        x_std = torch.std(x, dim=0)
+        # Ignore NaN values
+        x_not_nan = torch.unique(torch.where(torch.isfinite(x))[0])
+        x_std = torch.std(x[x_not_nan], dim=0)
         x_std[x_std == 0] = self._z_score_min_std
-        preprocess = Standardize(torch.mean(x, dim=0), x_std)
+        preprocess = Standardize(torch.mean(x[x_not_nan], dim=0), x_std)
 
         # If Sequential has a None component, forward will TypeError.
         return preprocess if embed_nn is None else nn.Sequential(preprocess, embed_nn)

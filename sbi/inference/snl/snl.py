@@ -142,8 +142,10 @@ class SNL(NeuralInference):
             # therefore return a theta vector with the same ordering as x.
             theta, x = self._batched_simulator(theta)
             # Store (theta, x) pairs.
-            self._theta_bank.append(theta)
-            self._x_bank.append(x)
+            # Get indices with finite data to remove NaN simulations.
+            x_not_nan = torch.unique(torch.where(torch.isfinite(x))[0])
+            self._theta_bank.append(theta[x_not_nan])
+            self._x_bank.append(x[x_not_nan])
 
             # Fit neural likelihood to newly aggregated dataset.
             self._train(
