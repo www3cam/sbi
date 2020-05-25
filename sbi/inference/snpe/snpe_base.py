@@ -1,6 +1,7 @@
 from abc import ABC
 from copy import deepcopy
-from typing import Callable, Optional, Tuple, Dict
+from sbi.utils.sbiutils import find_nan_in_simulations
+from typing import Callable, Optional, Tuple
 import warnings
 import logging
 
@@ -17,6 +18,7 @@ from sbi.inference.posteriors.sbi_posterior import Posterior
 from sbi.types import ScalarFloat, OneOrMore
 import sbi.utils as utils
 from sbi.utils import Standardize
+from sbi.utils.sbiutils import mark_nans_with_zero, warn_on_too_many_nans
 
 
 class SnpeBase(NeuralInference, ABC):
@@ -86,7 +88,8 @@ class SnpeBase(NeuralInference, ABC):
 
         # Calibration kernels proposed in Lueckmann, Goncalves et al 2017.
         if calibration_kernel is None:
-            self.calibration_kernel = lambda x: ones([len(x)])
+            # Set default kernel such that it excludes NaN simulations.
+            self.calibration_kernel = mark_nans_with_zero
         else:
             self.calibration_kernel = calibration_kernel
 
@@ -156,16 +159,13 @@ class SnpeBase(NeuralInference, ABC):
 
             # Run simulations for the round.
             theta, x, prior_mask = self._run_simulations(round_, num_sims)
-            # XXX: Bypassing binary calibration kernel here. We need this to get rid of
-            # NaN simulations. We could do that using calibration kernels, but then we
-            # hack here can be added to sre and snl easily.
 
-            # Get indices with finite data to remove NaN simulations.
-            x_not_nan = torch.unique(torch.where(torch.isfinite(x))[0])
+            warn_on_too_many_nans(x)
+
             # XXX Rename bank -> rounds/roundwise.
-            self._theta_bank.append(theta[x_not_nan])
-            self._x_bank.append(x[x_not_nan])
-            self._prior_masks.append(prior_mask[x_not_nan])
+            self._theta_bank.append(theta)
+            self._x_bank.append(x)
+            self._prior_masks.append(prior_mask)
 
             # Fit posterior using newly aggregated data set.
             self._train(
@@ -280,8 +280,8 @@ class SnpeBase(NeuralInference, ABC):
         # XXX Mouthful, rename self.posterior.nn
         embed_nn = self._neural_posterior.neural_net._embedding_net
 
-        # Ignore NaN values
-        x_not_nan = torch.unique(torch.where(torch.isfinite(x))[0])
+        # Exclude NaNs from zscoring.
+        x_not_nan = ~find_nan_in_simulations(x)
         x_std = torch.std(x[x_not_nan], dim=0)
         x_std[x_std == 0] = self._z_score_min_std
         preprocess = Standardize(torch.mean(x[x_not_nan], dim=0), x_std)
