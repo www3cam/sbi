@@ -18,6 +18,7 @@ from sbi.inference.base import NeuralInference
 from sbi.inference.posteriors.sbi_posterior import Posterior
 from sbi.utils.torchutils import ensure_x_batched, ensure_theta_batched
 from sbi.types import ScalarFloat, OneOrMore
+from sbi.utils.sbiutils import find_nan_in_simulations, warn_on_too_many_nans
 
 
 class SRE(NeuralInference):
@@ -41,6 +42,7 @@ class SRE(NeuralInference):
         show_progressbar: bool = True,
         show_round_summary: bool = False,
         logging_level: int = logging.WARNING,
+        handle_nans: bool = False,
     ):
         r"""Sequential Ratio Estimation [1]
 
@@ -62,6 +64,8 @@ class SRE(NeuralInference):
                 evaluation (only up to a normalizing constant), even when training
                 only one round. `aalr` is limited to `num_atoms=2`, but allows for
                 density evaluation when training for one round.
+            handle_nans: If True, NaN simulations are excluded from training, if False
+                an error is raised on NaNs.
 
         See docstring of `NeuralInference` class for all other arguments.
         """
@@ -83,6 +87,7 @@ class SRE(NeuralInference):
 
         self._classifier_loss = classifier_loss
         self._num_atoms = num_atoms if num_atoms is not None else 0
+        self.handle_nans = handle_nans
 
         if classifier is None:
             classifier = utils.classifier_nn(
@@ -174,8 +179,15 @@ class SRE(NeuralInference):
             theta, x = self._batched_simulator(theta)
 
             # Store (theta, x) pairs.
-            # Get indices with finite data to remove NaN simulations.
-            x_not_nan = torch.unique(torch.where(torch.isfinite(x))[0])
+
+            # Check for NaNs in data.
+            x_not_nan = ~find_nan_in_simulations(x)
+
+            if not self.handle_nans:
+                assert x_not_nan.all(), "Simulated data must be finite."
+            else:
+                warn_on_too_many_nans(x)
+
             self._theta_bank.append(theta[x_not_nan])
             self._x_bank.append(x[x_not_nan])
 

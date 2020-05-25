@@ -15,6 +15,7 @@ from sbi.inference.base import NeuralInference
 from sbi.inference.posteriors.sbi_posterior import Posterior
 from sbi.types import ScalarFloat, OneOrMore
 import sbi.utils as utils
+from sbi.utils.sbiutils import find_nan_in_simulations, warn_on_too_many_nans
 
 
 class SNL(NeuralInference):
@@ -34,6 +35,7 @@ class SNL(NeuralInference):
         show_progressbar: bool = True,
         show_round_summary: bool = False,
         logging_level: int = logging.WARNING,
+        handle_nans: bool = False,
     ):
         r"""Sequential Neural Likelihood
 
@@ -44,6 +46,8 @@ class SNL(NeuralInference):
         Args:
             density_estimator: Conditional density estimator $q(x|\theta)$, a nn.Module
                 with `.log_prob()` and `.sample()`
+            handle_nans: If True, NaN simulations are excluded from training, if False
+                an error is raised on NaNs.
 
         See docstring of `NeuralInference` class for all other arguments.
         """
@@ -85,6 +89,7 @@ class SNL(NeuralInference):
 
         # SNL-specific summary_writer fields
         self._summary.update({"mcmc_times": []})  # type: ignore
+        self.handle_nans = handle_nans
 
     def __call__(
         self,
@@ -142,8 +147,14 @@ class SNL(NeuralInference):
             # therefore return a theta vector with the same ordering as x.
             theta, x = self._batched_simulator(theta)
             # Store (theta, x) pairs.
-            # Get indices with finite data to remove NaN simulations.
-            x_not_nan = torch.unique(torch.where(torch.isfinite(x))[0])
+            # Check for NaNs in data.
+            x_not_nan = ~find_nan_in_simulations(x)
+
+            if not self.handle_nans:
+                assert x_not_nan.all(), "Simulated data must be finite."
+            else:
+                warn_on_too_many_nans(x)
+
             self._theta_bank.append(theta[x_not_nan])
             self._x_bank.append(x[x_not_nan])
 
