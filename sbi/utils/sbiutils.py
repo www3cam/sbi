@@ -1,9 +1,10 @@
+import logging
 import warnings
 from typing import Sequence, Tuple, Union
 
 import torch
 import torch.nn as nn
-from torch import Tensor, as_tensor, kthvalue
+from torch import Tensor, as_tensor
 
 import sbi.utils as utils
 from tqdm.auto import tqdm
@@ -223,7 +224,7 @@ def warn_on_too_many_nans(x: Tensor, percent_nan_threshold=0.5) -> None:
     percent_nan = find_nan_in_simulations(x).sum() / float(len(x))
 
     if percent_nan > percent_nan_threshold:
-        warnings.warn(
+        logging.warning(
             f"""Found {100 * percent_nan} NaNs in simulations. They
             will be excluded from training which the effective number of
             training samples and can impact training performance."""

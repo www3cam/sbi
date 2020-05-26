@@ -1,7 +1,7 @@
 from abc import ABC
 from copy import deepcopy
 from sbi.utils.sbiutils import find_nan_in_simulations
-from typing import Callable, Optional, Tuple
+from typing import Callable, Optional, Tuple, Dict
 import warnings
 import logging
 
@@ -89,7 +89,7 @@ class SnpeBase(NeuralInference, ABC):
         # Calibration kernels proposed in Lueckmann, Goncalves et al 2017.
         if calibration_kernel is None:
             # Set default kernel such that it excludes NaN simulations.
-            self.calibration_kernel = mark_nans_with_zero
+            self.calibration_kernel = lambda x: ones(len(x))
         else:
             self.calibration_kernel = calibration_kernel
 
@@ -160,12 +160,18 @@ class SnpeBase(NeuralInference, ABC):
             # Run simulations for the round.
             theta, x, prior_mask = self._run_simulations(round_, num_sims)
 
+            # Check for NaNs in data.
+            x_not_nan = ~find_nan_in_simulations(x)
+            logging.info(
+                f"""Found {x_not_nan.numel() - x_not_nan.sum()} NaN simulations. They
+                will be exluded from training."""
+            )
             warn_on_too_many_nans(x)
 
             # XXX Rename bank -> rounds/roundwise.
-            self._theta_bank.append(theta)
-            self._x_bank.append(x)
-            self._prior_masks.append(prior_mask)
+            self._theta_bank.append(theta[x_not_nan])
+            self._x_bank.append(x[x_not_nan])
+            self._prior_masks.append(prior_mask[x_not_nan])
 
             # Fit posterior using newly aggregated data set.
             self._train(
@@ -387,6 +393,8 @@ class SnpeBase(NeuralInference, ABC):
                     log_prob = self._get_log_prob_proposal_posterior(
                         theta_batch, x_batch, masks
                     )
+
+                assert torch.isfinite(log_prob).all()
                 loss = -torch.mean(log_prob)
                 loss.backward()
                 if clip_max_norm is not None:

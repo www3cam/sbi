@@ -149,7 +149,10 @@ class SNL(NeuralInference):
             # Store (theta, x) pairs.
             # Check for NaNs in data.
             x_not_nan = ~find_nan_in_simulations(x)
-
+            logging.info(
+                f"""Found {x_not_nan.numel() - x_not_nan.sum()} NaN simulations. They
+                will be exluded from training."""
+            )
             if not self.handle_nans:
                 assert x_not_nan.all(), "Simulated data must be finite."
             else:

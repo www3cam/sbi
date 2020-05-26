@@ -33,12 +33,13 @@ def test_find_nan_in_simulations(x_shape, set_seed):
     assert torch.isfinite(x[~x_is_nan]).all()
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize(
     ("method", "handle_nans", "percent_nans"),
     (
-        (SnpeC, True, 0.1),
-        (SNL, True, 0.1),
-        (SRE, True, 0.1),
+        (SnpeC, True, 0.2),
+        (SNL, True, 0.2),
+        (SRE, True, 0.2),
         pytest.param(
             SNL,
             False,
@@ -61,7 +62,7 @@ def test_inference_with_nan_simulator(method, handle_nans, percent_nans, set_see
     def linear_gaussian_nan(theta):
         x = linear_gaussian(theta)
         # Set nan randomly.
-        x[torch.rand(x.shape) < percent_nans] = float("nan")
+        x[torch.rand(x.shape) < (1.0 / x.shape[1]) * percent_nans] = float("nan")
 
         return x
 
@@ -81,7 +82,7 @@ def test_inference_with_nan_simulator(method, handle_nans, percent_nans, set_see
             simulator=linear_gaussian_nan, x_o=x_o, prior=prior, handle_nans=handle_nans
         )
 
-    posterior = infer(num_rounds=1, num_simulations_per_round=1000)
+    posterior = infer(num_rounds=2, num_simulations_per_round=500)
     samples = posterior.sample(num_samples)
 
     # Compute the mmd, and check if larger than expected
