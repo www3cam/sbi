@@ -42,7 +42,7 @@ class SRE(NeuralInference):
         show_progressbar: bool = True,
         show_round_summary: bool = False,
         logging_level: int = logging.WARNING,
-        handle_nans: bool = False,
+        handle_nans: bool = True,
     ):
         r"""Sequential Ratio Estimation [1]
 
@@ -182,6 +182,7 @@ class SRE(NeuralInference):
 
             # Check for NaNs in data.
             x_not_nan = ~find_nan_in_simulations(x)
+            print(f"Bank NaNs: {x_not_nan.numel() - x_not_nan.sum()}")
 
             if not self.handle_nans:
                 assert x_not_nan.all(), "Simulated data must be finite."

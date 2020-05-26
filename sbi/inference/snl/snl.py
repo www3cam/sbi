@@ -35,7 +35,7 @@ class SNL(NeuralInference):
         show_progressbar: bool = True,
         show_round_summary: bool = False,
         logging_level: int = logging.WARNING,
-        handle_nans: bool = False,
+        handle_nans: bool = True,
     ):
         r"""Sequential Neural Likelihood
 
