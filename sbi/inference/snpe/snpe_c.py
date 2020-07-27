@@ -3,17 +3,16 @@
 
 
 from typing import (
-    Callable,
-    Optional,
-    Union,
-    Dict,
     Any,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Sequence,
     Tuple,
+    TypeVar,
     Union,
     cast,
-    List,
-    Sequence,
-    TypeVar,
 )
 
 import torch

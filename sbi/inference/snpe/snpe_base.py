@@ -4,19 +4,17 @@
 
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from sbi.user_input.user_input_checks import check_estimator_arg
 from typing import (
-    Callable,
-    Optional,
-    Union,
-    Dict,
     Any,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Sequence,
     Tuple,
+    TypeVar,
     Union,
     cast,
-    List,
-    Sequence,
-    TypeVar,
 )
 from warnings import warn
 
@@ -32,6 +30,7 @@ from sbi import utils as utils
 from sbi.inference import NeuralInference
 from sbi.inference.posterior import NeuralPosterior
 from sbi.types import ScalarFloat
+from sbi.user_input.user_input_checks import check_estimator_arg
 from sbi.utils import check_estimator_arg, x_shape_from_simulation
 
 
