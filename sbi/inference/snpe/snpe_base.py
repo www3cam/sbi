@@ -133,9 +133,9 @@ class PosteriorEstimator(NeuralInference, ABC):
         Args:
             num_simulations: Number of simulator calls.
             proposal: Distribution that the parameters $\theta$ are drawn from.
-                `proposal=None` uses the prior (i.e. single-round inference). Setting
-                the proposal to e.g. the posterior of the previous round leads to
-                multi-round inference.
+                `proposal=None` uses the prior. Setting the proposal to a distribution
+                targeted on a specific observation, e.g. a posterior $p(\theta|x_o)$
+                obtained previously, can lead to less required simulations.
             training_batch_size: Training batch size.
             learning_rate: Learning rate for Adam optimizer.
             validation_fraction: The fraction of data to use for validation.

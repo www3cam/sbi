@@ -248,7 +248,9 @@ class NeuralInference(ABC):
 
         return theta[is_valid_x], x[is_valid_x], prior_masks[is_valid_x]
 
-    def _run_simulations(self, proposal: Any, num_sims: int,) -> Tuple[Tensor, Tensor]:
+    def _run_simulations(
+        self, proposal: Optional[Any], num_sims: int,
+    ) -> Tuple[Tensor, Tensor]:
         r"""
         Run the simulations for a given round.
 

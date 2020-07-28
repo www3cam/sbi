@@ -112,7 +112,6 @@ class RatioEstimator(NeuralInference, ABC):
         self,
         num_simulations: int,
         proposal: Optional[Any] = None,
-        x_o: Optional[Tensor] = None,
         num_atoms: int = 10,
         training_batch_size: int = 50,
         learning_rate: float = 5e-4,

@@ -134,7 +134,6 @@ class NeuralPosterior:
 
         Args:
             x: The default observation to set for the posterior $p(theta|x)$.
-            deep_copy: Whether to return a deepcopy of the posterior.
 
         Returns:
             `NeuralPosterior` that will use a default `x` when not explicitly passed.

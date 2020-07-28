@@ -108,7 +108,6 @@ class LikelihoodEstimator(NeuralInference, ABC):
         self,
         num_simulations: int,
         proposal: Optional[Any] = None,
-        x_o: Optional[Tensor] = None,
         training_batch_size: int = 50,
         learning_rate: float = 5e-4,
         validation_fraction: float = 0.1,
